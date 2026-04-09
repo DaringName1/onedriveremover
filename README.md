@@ -1,0 +1,68 @@
+# OneDrive Remover
+
+Current version: `v1.0.0`
+
+Removes OneDrive from Windows 10 and Windows 11 while preserving user files.
+
+## What It Does
+
+- Removes the OneDrive app
+- Cleans OneDrive startup entries and related registry entries
+- Removes Explorer sidebar integration
+- Blocks normal OneDrive reinstall behavior
+- Preserves your files
+- Moves Desktop, Documents, and Pictures out of OneDrive first when needed
+- Stops if those folders contain cloud-only files that are not fully downloaded
+- Verifies the cleanup after removal and lets you save a log
+
+## Requirements
+
+- Windows 10 or Windows 11
+- Administrator rights
+- Not supported on Windows S Mode
+
+## Download
+
+Download the latest `OneDrive-Remover.exe` from the GitHub Releases page.
+
+## In The App
+
+The app shows:
+
+- The current version in the window title
+- A short plain-English note explaining what the tool does
+- Step-by-step progress while it runs
+- A `Save Log` button for troubleshooting or support
+
+## How To Use
+
+1. Download `OneDrive-Remover.exe`
+2. Right-click it and choose `Run as administrator`
+3. Click `Run - Remove OneDrive`
+4. If prompted, allow the tool to move Desktop, Documents, or Pictures out of OneDrive first
+5. If the tool says some files are cloud-only, open OneDrive and choose `Always keep on this device`, then run the tool again
+6. Restart Windows when the tool finishes
+
+## Safety Notes
+
+- Your files are not deleted by this tool
+- If Desktop, Documents, or Pictures are inside OneDrive, the tool copies them back to local Windows folders first
+- The original OneDrive copy is left in place as a backup copy during that move step
+- The tool shuts down OneDrive, removes its scheduled tasks, clears local OneDrive account state, and then uninstalls it
+
+## Included Files
+
+- `OneDrive-Remover.exe`
+- `Remove-OneDrive.ps1`
+
+## GitHub Release Setup
+
+1. Create a new public GitHub repository
+2. Upload the files in this folder
+3. Create a Release such as `v1.0.0`
+4. Attach `OneDrive-Remover.exe` to the release
+5. Tell users to download the `.exe` from the Releases page
+
+## Disclaimer
+
+Use at your own risk. This tool is intended for normal personal Windows 10 and Windows 11 PCs.
