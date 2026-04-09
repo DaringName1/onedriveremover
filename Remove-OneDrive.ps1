@@ -1,12 +1,21 @@
 #Requires -Version 5.1
 # ============================================================
-#  OneDrive Remover v1.0.0 - Handles clean, partial & broken installs
+#  OneDrive Remover v1.1.0 - Handles clean, partial & broken installs
 #  Launched automatically as Admin via the desktop shortcut
 # ============================================================
 
+[CmdletBinding()]
+param(
+    [switch]$AutoApproveFolderMove,
+    [switch]$SkipOfficeFix,
+    [string]$SaveLogPath,
+    [switch]$CheckOnly,
+    [switch]$VerifyOnly
+)
+
 try {
 
-$AppVersion = "1.0.0"
+$AppVersion = "1.1.0"
 $selfPath = if ($PSCommandPath) { $PSCommandPath } elseif ($MyInvocation.MyCommand.Path) { $MyInvocation.MyCommand.Path } else { $null }
 $isCompiledExe = $selfPath -and ([System.IO.Path]::GetExtension($selfPath) -ieq ".exe")
 $scriptDir = if ($selfPath) { Split-Path -Parent $selfPath } else { (Get-Location).Path }
@@ -20,6 +29,72 @@ if ($selfPath -and -not $isCompiledExe -and (Test-Path -LiteralPath $selfPath)) 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
+
+function Get-OneDriveStatusReport {
+    $odBase = "$env:USERPROFILE\OneDrive"
+    $folderMap = @{
+        Desktop   = [Environment]::GetFolderPath("Desktop")
+        Documents = [Environment]::GetFolderPath("MyDocuments")
+        Pictures  = [Environment]::GetFolderPath("MyPictures")
+    }
+    $knownFoldersInOneDrive = @(
+        $folderMap.Keys | Where-Object { $folderMap[$_] -like "$odBase*" }
+    )
+    $tasks = @(Get-ScheduledTask -EA SilentlyContinue | Where-Object { $_.TaskName -match "OneDrive" })
+    $processes = @(Get-Process -Name "OneDrive","OneDriveSetup","FileCoAuth","FileSyncHelper" -EA SilentlyContinue | Select-Object -ExpandProperty ProcessName)
+    $sidebarIds = @("{018D5C66-4533-4307-9B53-224DE2ED1FE6}","{04271989-C4F2-4BF7-BDD3-6A4CE03B45F2}","{0E5AAE11-A475-4c5b-AB00-C66DE400274E}")
+    $sidebarPresent = $false
+    foreach($id in $sidebarIds){
+        foreach($ns in @("HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\$id","HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\$id")){
+            if(Test-Path $ns){ $sidebarPresent = $true; break }
+        }
+        if($sidebarPresent){ break }
+    }
+    $gp = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OneDrive"
+    $policyBlock = (Get-ItemProperty -Path $gp -Name "DisableFileSyncNGSC" -EA SilentlyContinue).DisableFileSyncNGSC -eq 1
+    $uninstallers = @(
+        "$env:SystemRoot\SysWOW64\OneDriveSetup.exe",
+        "$env:SystemRoot\System32\OneDriveSetup.exe",
+        "$env:LOCALAPPDATA\Microsoft\OneDrive\OneDriveSetup.exe",
+        "$env:LOCALAPPDATA\Microsoft\OneDrive\Update\OneDriveSetup.exe",
+        "$env:ProgramFiles\Microsoft OneDrive\OneDriveSetup.exe",
+        "${env:ProgramFiles(x86)}\Microsoft OneDrive\OneDriveSetup.exe"
+    ) | Where-Object { Test-Path $_ }
+    $appxPackages = @(Get-AppxPackage -AllUsers -EA SilentlyContinue | Where-Object { $_.Name -match "OneDrive" } | Select-Object -ExpandProperty Name)
+
+    [PSCustomObject]@{
+        OneDriveDataFolder     = $odBase
+        KnownFoldersInOneDrive = $knownFoldersInOneDrive
+        RunningProcesses       = $processes
+        ScheduledTasks         = @($tasks | Select-Object -ExpandProperty TaskName)
+        UninstallerPaths       = $uninstallers
+        AppxPackages           = $appxPackages
+        SidebarEntriesPresent  = $sidebarPresent
+        PolicyBlockEnabled     = $policyBlock
+    }
+}
+
+function Write-OneDriveStatusReport($title, $report) {
+    Write-Output $title
+    Write-Output ("Data folder: {0}" -f $report.OneDriveDataFolder)
+    Write-Output ("Known folders in OneDrive: {0}" -f ($(if($report.KnownFoldersInOneDrive.Count){ $report.KnownFoldersInOneDrive -join ", " } else { "none" })))
+    Write-Output ("Running processes: {0}" -f ($(if($report.RunningProcesses.Count){ $report.RunningProcesses -join ", " } else { "none" })))
+    Write-Output ("Scheduled tasks: {0}" -f ($(if($report.ScheduledTasks.Count){ $report.ScheduledTasks -join ", " } else { "none" })))
+    Write-Output ("Uninstallers found: {0}" -f ($(if($report.UninstallerPaths.Count){ $report.UninstallerPaths -join "; " } else { "none" })))
+    Write-Output ("AppX packages: {0}" -f ($(if($report.AppxPackages.Count){ $report.AppxPackages -join ", " } else { "none" })))
+    Write-Output ("Explorer sidebar entries present: {0}" -f $report.SidebarEntriesPresent)
+    Write-Output ("Reinstall block policy enabled: {0}" -f $report.PolicyBlockEnabled)
+}
+
+if ($CheckOnly) {
+    Write-OneDriveStatusReport "OneDrive check-only report" (Get-OneDriveStatusReport)
+    exit
+}
+
+if ($VerifyOnly) {
+    Write-OneDriveStatusReport "OneDrive verify-only report" (Get-OneDriveStatusReport)
+    exit
+}
 
 # -- Admin check - re-launch elevated if not already ----------
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")
@@ -106,14 +181,16 @@ foreach ($name in $folderMap.Keys) {
     if ($folderMap[$name] -like "$odBase*") { $kfmHit += $name }
 }
 if ($kfmHit.Count -gt 0) {
-    $detailLines = ($kfmHit | ForEach-Object { "  {0}: {1}" -f $_, $folderMap[$_] }) -join "`n"
-    $kfmResult = [System.Windows.Forms.MessageBox]::Show(
-        "Some Windows folders are still inside OneDrive:`n$detailLines`n`nThis tool can copy them back to this PC first, switch Windows to those local folders, and then remove OneDrive. The old OneDrive copy will stay there as a backup.`n`nDo you want to do that now?",
-        "Move Folders Out Of OneDrive",
-        [System.Windows.Forms.MessageBoxButtons]::YesNo,
-        [System.Windows.Forms.MessageBoxIcon]::Warning
-    )
-    if ($kfmResult -ne "Yes") { exit }
+    if (-not $AutoApproveFolderMove) {
+        $detailLines = ($kfmHit | ForEach-Object { "  {0}: {1}" -f $_, $folderMap[$_] }) -join "`n"
+        $kfmResult = [System.Windows.Forms.MessageBox]::Show(
+            "Some Windows folders are still inside OneDrive:`n$detailLines`n`nThis tool can copy them back to this PC first, switch Windows to those local folders, and then remove OneDrive. The old OneDrive copy will stay there as a backup.`n`nDo you want to do that now?",
+            "Move Folders Out Of OneDrive",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+            [System.Windows.Forms.MessageBoxIcon]::Warning
+        )
+        if ($kfmResult -ne "Yes") { exit }
+    }
 }
 
 $BG      = [System.Drawing.Color]::FromArgb(13, 13, 18)
@@ -207,6 +284,14 @@ function Export-RemovalLog(){
             [System.Windows.Forms.MessageBoxIcon]::Information
         ) | Out-Null
     }
+}
+function Save-LogIfRequested(){
+    if([string]::IsNullOrWhiteSpace($SaveLogPath)){ return }
+    $parent = Split-Path -Parent $SaveLogPath
+    if(-not [string]::IsNullOrWhiteSpace($parent)){
+        [System.IO.Directory]::CreateDirectory($parent) | Out-Null
+    }
+    [System.IO.File]::WriteAllText($SaveLogPath, $log.Text, [System.Text.UTF8Encoding]::new($false))
 }
 function Get-CloudOnlyFiles($path){
     if(-not (Test-Path -LiteralPath $path)){ return @() }
@@ -558,30 +643,34 @@ $btn.Add_Click({
 
         # STEP 9 - Fix Office default save location + clean side effects
         Mark 9 "run"; $lblSt.Text="Fixing Office save location and side effects..."
-        L "  Resetting Office default save path to Documents..." $DIM
-        $docsPath = [Environment]::GetFolderPath("MyDocuments")
-        foreach ($ver in @("16.0","15.0","14.0")) {
-            foreach ($app in @("Word","Excel","PowerPoint","OneNote")) {
-                $oPath = "HKCU:\Software\Microsoft\Office\$ver\$app\Options"
-                if (Test-Path $oPath) {
-                    Set-ItemProperty -Path $oPath -Name "DefaultPath" -Value $docsPath -EA SilentlyContinue
-                    L "    Reset $app $ver save path - $docsPath" $SUCCESS
+        if($SkipOfficeFix){
+            L "  Skipped Office cleanup because -SkipOfficeFix was used." $WARN
+        } else {
+            L "  Resetting Office default save path to Documents..." $DIM
+            $docsPath = [Environment]::GetFolderPath("MyDocuments")
+            foreach ($ver in @("16.0","15.0","14.0")) {
+                foreach ($app in @("Word","Excel","PowerPoint","OneNote")) {
+                    $oPath = "HKCU:\Software\Microsoft\Office\$ver\$app\Options"
+                    if (Test-Path $oPath) {
+                        Set-ItemProperty -Path $oPath -Name "DefaultPath" -Value $docsPath -EA SilentlyContinue
+                        L "    Reset $app $ver save path - $docsPath" $SUCCESS
+                    }
+                }
+                # Reset common Office cloud storage preference
+                $commonPath = "HKCU:\Software\Microsoft\Office\$ver\Common\General"
+                if (Test-Path $commonPath) {
+                    Set-ItemProperty -Path $commonPath -Name "PreferCloudSaveLocations" -Value 0 -Type DWord -EA SilentlyContinue
+                    Set-ItemProperty -Path $commonPath -Name "SkyDriveSignInOption" -Value 0 -Type DWord -EA SilentlyContinue
                 }
             }
-            # Reset common Office cloud storage preference
-            $commonPath = "HKCU:\Software\Microsoft\Office\$ver\Common\General"
-            if (Test-Path $commonPath) {
-                Set-ItemProperty -Path $commonPath -Name "PreferCloudSaveLocations" -Value 0 -Type DWord -EA SilentlyContinue
-                Set-ItemProperty -Path $commonPath -Name "SkyDriveSignInOption" -Value 0 -Type DWord -EA SilentlyContinue
+            # Clear Windows Backup OneDrive reference
+            $buPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CloudExperienceHost\Intent\officeHub"
+            if (Test-Path $buPath) {
+                Set-ItemProperty -Path $buPath -Name "Intent" -Value 0 -Type DWord -EA SilentlyContinue
+                L "  Cleared Windows Backup OneDrive reference." $SUCCESS
             }
+            L "  Office side effects cleaned." $SUCCESS
         }
-        # Clear Windows Backup OneDrive reference
-        $buPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CloudExperienceHost\Intent\officeHub"
-        if (Test-Path $buPath) {
-            Set-ItemProperty -Path $buPath -Name "Intent" -Value 0 -Type DWord -EA SilentlyContinue
-            L "  Cleared Windows Backup OneDrive reference." $SUCCESS
-        }
-        L "  Office side effects cleaned." $SUCCESS
         $prog.Value=10; Mark 9 "ok"
 
         # Final verification
@@ -602,6 +691,7 @@ $btn.Add_Click({
             L "--------------------------------------" $WARN
         }
         $script:done = $true
+        Save-LogIfRequested
         $btn.Text="Done - Click to Restart Now"; $btn.BackColor=$SUCCESS; $btn.ForeColor=[System.Drawing.Color]::FromArgb(10,10,15); $btn.Enabled=$true
         $btnSave.Enabled=$true
     } catch {
@@ -617,6 +707,7 @@ $btn.Add_Click({
         $btn.Text="Run - Remove OneDrive"
         $btn.BackColor=$ACCENT
         $btnSave.Enabled=$true
+        Save-LogIfRequested
         [System.Windows.Forms.MessageBox]::Show(
             "The tool hit an error, but the details are now in the log window.`n`nClick Save Log if you want to keep a copy.",
             "OneDrive Remover Error",

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0 - 2026-04-09
+
+- Added advanced PowerShell switches for technical users
+- Added `-CheckOnly` to report current OneDrive state without removing anything
+- Added `-VerifyOnly` to report remaining OneDrive items after cleanup
+- Added `-AutoApproveFolderMove` to skip the move confirmation prompt
+- Added `-SkipOfficeFix` to skip Office cleanup
+- Added `-SaveLogPath` to save the log automatically to a chosen file path
+
 ## 1.0.0 - 2026-04-09
 
 - Added a Windows GUI with step-by-step progress and logging

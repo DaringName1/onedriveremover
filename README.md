@@ -1,6 +1,6 @@
 # OneDrive Remover
 
-Current version: `v1.0.0`
+Current version: `v1.1.0`
 
 Removes OneDrive from Windows 10 and Windows 11 while preserving user files.
 
@@ -83,6 +83,46 @@ This only changes policy for the current PowerShell window.
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process
 .\Remove-OneDrive.ps1
+```
+
+## Advanced Usage
+
+These switches are mainly useful when running the `PS1` directly.
+
+### Check current OneDrive state without removing anything
+
+```powershell
+.\Remove-OneDrive.ps1 -CheckOnly
+```
+
+### Verify whether OneDrive remnants are still present
+
+```powershell
+.\Remove-OneDrive.ps1 -VerifyOnly
+```
+
+### Auto-approve moving Desktop, Documents, and Pictures out of OneDrive
+
+```powershell
+.\Remove-OneDrive.ps1 -AutoApproveFolderMove
+```
+
+### Skip Office save-location cleanup
+
+```powershell
+.\Remove-OneDrive.ps1 -SkipOfficeFix
+```
+
+### Save the log automatically to a file
+
+```powershell
+.\Remove-OneDrive.ps1 -SaveLogPath "C:\Temp\OneDrive-Removal-Log.txt"
+```
+
+### Example with multiple switches
+
+```powershell
+.\Remove-OneDrive.ps1 -AutoApproveFolderMove -SkipOfficeFix -SaveLogPath "C:\Temp\OneDrive-Removal-Log.txt"
 ```
 
 ## Safety Notes
