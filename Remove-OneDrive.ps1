@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 # ============================================================
-#  OneDrive Remover v1.1.1 - Handles clean, partial & broken installs
+#  OneDrive Remover v1.1.2 - Handles clean, partial & broken installs
 #  Launched automatically as Admin via the desktop shortcut
 # ============================================================
 
@@ -15,7 +15,7 @@ param(
 
 try {
 
-$AppVersion = "1.1.1"
+$AppVersion = "1.1.2"
 $selfPath = if ($PSCommandPath) { $PSCommandPath } elseif ($MyInvocation.MyCommand.Path) { $MyInvocation.MyCommand.Path } else { $null }
 $isCompiledExe = $selfPath -and ([System.IO.Path]::GetExtension($selfPath) -ieq ".exe")
 $scriptDir = if ($selfPath) { Split-Path -Parent $selfPath } else { (Get-Location).Path }
@@ -31,14 +31,15 @@ Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
 function Get-OneDriveStatusReport {
-    $odBase = "$env:USERPROFILE\OneDrive"
+    $oneDriveRoots = @(Get-OneDriveRoots)
+    $primaryOneDriveRoot = if($oneDriveRoots.Count){ $oneDriveRoots[0] } else { "$env:USERPROFILE\OneDrive" }
     $folderMap = @{
         Desktop   = [Environment]::GetFolderPath("Desktop")
         Documents = [Environment]::GetFolderPath("MyDocuments")
         Pictures  = [Environment]::GetFolderPath("MyPictures")
     }
     $knownFoldersInOneDrive = @(
-        $folderMap.Keys | Where-Object { $folderMap[$_] -like "$odBase*" }
+        $folderMap.Keys | Where-Object { Test-IsUnderOneDriveRoot $folderMap[$_] }
     )
     $tasks = @(Get-ScheduledTask -EA SilentlyContinue | Where-Object { $_.TaskName -match "OneDrive" })
     $processes = @(Get-Process -Name "OneDrive","OneDriveSetup","FileCoAuth","FileSyncHelper" -EA SilentlyContinue | Select-Object -ExpandProperty ProcessName)
@@ -63,7 +64,7 @@ function Get-OneDriveStatusReport {
     $appxPackages = @(Get-AppxPackage -AllUsers -EA SilentlyContinue | Where-Object { $_.Name -match "OneDrive" } | Select-Object -ExpandProperty Name)
 
     [PSCustomObject]@{
-        OneDriveDataFolder     = $odBase
+        OneDriveDataFolder     = $primaryOneDriveRoot
         KnownFoldersInOneDrive = $knownFoldersInOneDrive
         RunningProcesses       = $processes
         ScheduledTasks         = @($tasks | Select-Object -ExpandProperty TaskName)
@@ -74,16 +75,88 @@ function Get-OneDriveStatusReport {
     }
 }
 
+function Get-OneDriveRoots {
+    $roots = New-Object System.Collections.ArrayList
+
+    foreach($candidate in @(
+        "$env:USERPROFILE\OneDrive"
+    )){
+        if((Test-Path -LiteralPath $candidate) -and -not ($roots -contains $candidate)){
+            [void]$roots.Add($candidate)
+        }
+    }
+
+    Get-ChildItem -LiteralPath $env:USERPROFILE -Directory -EA SilentlyContinue |
+        Where-Object { $_.Name -like "OneDrive*" } |
+        ForEach-Object {
+            if(-not ($roots -contains $_.FullName)){
+                [void]$roots.Add($_.FullName)
+            }
+        }
+
+    return @($roots)
+}
+
+function Test-IsUnderOneDriveRoot($path){
+    if([string]::IsNullOrWhiteSpace($path)){ return $false }
+
+    try {
+        $resolvedPath = [System.IO.Path]::GetFullPath($path.TrimEnd('\'))
+    } catch {
+        return $false
+    }
+
+    foreach($root in @(Get-OneDriveRoots)){
+        try {
+            $resolvedRoot = [System.IO.Path]::GetFullPath($root.TrimEnd('\'))
+        } catch {
+            continue
+        }
+        if($resolvedPath -eq $resolvedRoot -or $resolvedPath.StartsWith($resolvedRoot + '\', [System.StringComparison]::OrdinalIgnoreCase)){
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Write-OneDriveStatusReport($title, $report) {
-    Write-Output $title
-    Write-Output ("Data folder: {0}" -f $report.OneDriveDataFolder)
-    Write-Output ("Known folders in OneDrive: {0}" -f ($(if($report.KnownFoldersInOneDrive.Count){ $report.KnownFoldersInOneDrive -join ", " } else { "none" })))
-    Write-Output ("Running processes: {0}" -f ($(if($report.RunningProcesses.Count){ $report.RunningProcesses -join ", " } else { "none" })))
-    Write-Output ("Scheduled tasks: {0}" -f ($(if($report.ScheduledTasks.Count){ $report.ScheduledTasks -join ", " } else { "none" })))
-    Write-Output ("Uninstallers found: {0}" -f ($(if($report.UninstallerPaths.Count){ $report.UninstallerPaths -join "; " } else { "none" })))
-    Write-Output ("AppX packages: {0}" -f ($(if($report.AppxPackages.Count){ $report.AppxPackages -join ", " } else { "none" })))
-    Write-Output ("Explorer sidebar entries present: {0}" -f $report.SidebarEntriesPresent)
-    Write-Output ("Reinstall block policy enabled: {0}" -f $report.PolicyBlockEnabled)
+    $lines = @(
+        $title
+        ("Data folder: {0}" -f $report.OneDriveDataFolder)
+        ("Known folders in OneDrive: {0}" -f ($(if($report.KnownFoldersInOneDrive.Count){ $report.KnownFoldersInOneDrive -join ", " } else { "none" })))
+        ("Running processes: {0}" -f ($(if($report.RunningProcesses.Count){ $report.RunningProcesses -join ", " } else { "none" })))
+        ("Scheduled tasks: {0}" -f ($(if($report.ScheduledTasks.Count){ $report.ScheduledTasks -join ", " } else { "none" })))
+        ("Uninstallers found: {0}" -f ($(if($report.UninstallerPaths.Count){ $report.UninstallerPaths -join "; " } else { "none" })))
+        ("AppX packages: {0}" -f ($(if($report.AppxPackages.Count){ $report.AppxPackages -join ", " } else { "none" })))
+        ("Explorer sidebar entries present: {0}" -f $report.SidebarEntriesPresent)
+        ("Reinstall block policy enabled: {0}" -f $report.PolicyBlockEnabled)
+    )
+    $text = ($lines -join [Environment]::NewLine)
+    Write-Output $text
+    Save-TextReportIfRequested $text
+}
+
+function Write-VerificationReport($issues) {
+    $lines = @("OneDrive verify-only report")
+    if($issues.Count -eq 0){
+        $lines += "Verification result: no common OneDrive remnants were found."
+    } else {
+        $lines += "Verification result: some OneDrive remnants still exist."
+        $lines += ($issues | ForEach-Object { "- $_" })
+    }
+    $text = ($lines -join [Environment]::NewLine)
+    Write-Output $text
+    Save-TextReportIfRequested $text
+}
+
+function Save-TextReportIfRequested($text){
+    if([string]::IsNullOrWhiteSpace($SaveLogPath)){ return }
+    $parent = Split-Path -Parent $SaveLogPath
+    if(-not [string]::IsNullOrWhiteSpace($parent)){
+        [System.IO.Directory]::CreateDirectory($parent) | Out-Null
+    }
+    [System.IO.File]::WriteAllText($SaveLogPath, $text, [System.Text.UTF8Encoding]::new($false))
 }
 
 if ($CheckOnly) {
@@ -92,7 +165,7 @@ if ($CheckOnly) {
 }
 
 if ($VerifyOnly) {
-    Write-OneDriveStatusReport "OneDrive verify-only report" (Get-OneDriveStatusReport)
+    Write-VerificationReport @(Verify-RemovalState)
     exit
 }
 
@@ -160,7 +233,6 @@ if ($uacEnabled -eq 0) {
 
 # 4. Known Folder Move detection - if Desktop/Documents/Pictures
 #    are inside OneDrive, copy them back to local profile folders first.
-$odBase    = "$env:USERPROFILE\OneDrive"
 $kfmHit    = @()
 $folderMap  = @{
     Desktop   = [Environment]::GetFolderPath("Desktop")
@@ -178,7 +250,7 @@ $folderRegistryNames = @{
     Pictures  = "My Pictures"
 }
 foreach ($name in $folderMap.Keys) {
-    if ($folderMap[$name] -like "$odBase*") { $kfmHit += $name }
+    if (Test-IsUnderOneDriveRoot $folderMap[$name]) { $kfmHit += $name }
 }
 if ($kfmHit.Count -gt 0) {
     if (-not $AutoApproveFolderMove) {

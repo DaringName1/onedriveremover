@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.2 - 2026-04-09
+
+- Fixed known-folder detection so OneDrive for Business paths are treated as OneDrive-managed
+- Fixed `-VerifyOnly` to use real verification logic instead of the check-only report
+- Fixed `-SaveLogPath` so it also works with non-GUI `-CheckOnly` and `-VerifyOnly` modes
+
 ## 1.1.1 - 2026-04-09
 
 - Fixed the AppX cleanup step error caused by a stray `else`

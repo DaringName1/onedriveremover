@@ -1,6 +1,6 @@
 # OneDrive Remover
 
-Current version: `v1.1.1`
+Current version: `v1.1.2`
 
 Removes OneDrive from Windows 10 and Windows 11 while preserving user files.
 
