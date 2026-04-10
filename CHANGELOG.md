@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1 - 2026-04-09
+
+- Fixed the AppX cleanup step error caused by a stray `else`
+- Made the interface larger and easier to use
+- Increased the log area and improved button layout
+
 ## 1.1.0 - 2026-04-09
 
 - Added advanced PowerShell switches for technical users

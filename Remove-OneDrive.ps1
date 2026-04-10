@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 # ============================================================
-#  OneDrive Remover v1.1.0 - Handles clean, partial & broken installs
+#  OneDrive Remover v1.1.1 - Handles clean, partial & broken installs
 #  Launched automatically as Admin via the desktop shortcut
 # ============================================================
 
@@ -15,7 +15,7 @@ param(
 
 try {
 
-$AppVersion = "1.1.0"
+$AppVersion = "1.1.1"
 $selfPath = if ($PSCommandPath) { $PSCommandPath } elseif ($MyInvocation.MyCommand.Path) { $MyInvocation.MyCommand.Path } else { $null }
 $isCompiledExe = $selfPath -and ([System.IO.Path]::GetExtension($selfPath) -ieq ".exe")
 $scriptDir = if ($selfPath) { Split-Path -Parent $selfPath } else { (Get-Location).Path }
@@ -211,7 +211,7 @@ $FStep  = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontSty
 # -- Form -----------------------------------------------------
 $form = New-Object System.Windows.Forms.Form
 $form.Text            = "OneDrive Remover v$AppVersion"
-$form.Size            = New-Object System.Drawing.Size(580, 730)
+$form.Size            = New-Object System.Drawing.Size(640, 820)
 $form.StartPosition   = "CenterScreen"
 $form.BackColor       = $BG
 $form.ForeColor       = $TEXT
@@ -225,14 +225,14 @@ if (Test-Path -LiteralPath $iconPath) {
 
 # Header
 $hdr = New-Object System.Windows.Forms.Panel
-$hdr.Size = New-Object System.Drawing.Size(580, 88); $hdr.Location = New-Object System.Drawing.Point(0,0); $hdr.BackColor = $PANEL
+$hdr.Size = New-Object System.Drawing.Size(640, 88); $hdr.Location = New-Object System.Drawing.Point(0,0); $hdr.BackColor = $PANEL
 $t1 = New-Object System.Windows.Forms.Label; $t1.Text = "  OneDrive Remover"; $t1.Font = $FTitle; $t1.ForeColor = $TEXT; $t1.Location = New-Object System.Drawing.Point(10,10); $t1.AutoSize = $true
 $t2 = New-Object System.Windows.Forms.Label; $t2.Text = "  v$AppVersion - Safe OneDrive removal for Windows 10 and 11"; $t2.Font = $FSub; $t2.ForeColor = $DIM; $t2.Location = New-Object System.Drawing.Point(12,50); $t2.AutoSize = $true
 $hdr.Controls.AddRange(@($t1,$t2)); $form.Controls.Add($hdr)
 
 # Banner
-$ban = New-Object System.Windows.Forms.Panel; $ban.Size = New-Object System.Drawing.Size(528,44); $ban.Location = New-Object System.Drawing.Point(26,102); $ban.BackColor = [System.Drawing.Color]::FromArgb(0,55,28)
-$bl  = New-Object System.Windows.Forms.Label; $bl.Text = "  This tool removes the OneDrive app, keeps your files, and can move Windows folders back to this PC first."; $bl.Font = $FSub; $bl.ForeColor = $SUCCESS; $bl.Location = New-Object System.Drawing.Point(8,7); $bl.Size = New-Object System.Drawing.Size(514,30)
+$ban = New-Object System.Windows.Forms.Panel; $ban.Size = New-Object System.Drawing.Size(588,54); $ban.Location = New-Object System.Drawing.Point(26,102); $ban.BackColor = [System.Drawing.Color]::FromArgb(0,55,28)
+$bl  = New-Object System.Windows.Forms.Label; $bl.Text = "  Removes the OneDrive app, keeps your files, and moves Windows folders back to this PC first when needed."; $bl.Font = $FSub; $bl.ForeColor = $SUCCESS; $bl.Location = New-Object System.Drawing.Point(8,8); $bl.Size = New-Object System.Drawing.Size(570,36)
 $ban.Controls.Add($bl); $form.Controls.Add($ban)
 
 # Steps
@@ -256,15 +256,15 @@ for ($i=0; $i -lt $stepDefs.Count; $i++) {
 }
 
 # Progress + status
-$prog = New-Object System.Windows.Forms.ProgressBar; $prog.Size = New-Object System.Drawing.Size(528,7); $prog.Location = New-Object System.Drawing.Point(26,535); $prog.Minimum=0; $prog.Maximum=$stepDefs.Count; $prog.Style="Continuous"; $form.Controls.Add($prog)
-$lblSt = New-Object System.Windows.Forms.Label; $lblSt.Text="Ready - press Run to begin"; $lblSt.Font=$FSub; $lblSt.ForeColor=$DIM; $lblSt.Location=New-Object System.Drawing.Point(26,550); $lblSt.Size=New-Object System.Drawing.Size(528,18); $form.Controls.Add($lblSt)
+$prog = New-Object System.Windows.Forms.ProgressBar; $prog.Size = New-Object System.Drawing.Size(588,7); $prog.Location = New-Object System.Drawing.Point(26,535); $prog.Minimum=0; $prog.Maximum=$stepDefs.Count; $prog.Style="Continuous"; $form.Controls.Add($prog)
+$lblSt = New-Object System.Windows.Forms.Label; $lblSt.Text="Ready - press Run to begin"; $lblSt.Font=$FSub; $lblSt.ForeColor=$DIM; $lblSt.Location=New-Object System.Drawing.Point(26,550); $lblSt.Size=New-Object System.Drawing.Size(588,18); $form.Controls.Add($lblSt)
 
 # Log
-$log = New-Object System.Windows.Forms.RichTextBox; $log.Size=New-Object System.Drawing.Size(528,96); $log.Location=New-Object System.Drawing.Point(26,574); $log.BackColor=[System.Drawing.Color]::FromArgb(8,8,13); $log.ForeColor=$DIM; $log.Font=$FMono; $log.ReadOnly=$true; $log.BorderStyle="None"; $log.ScrollBars="Vertical"; $form.Controls.Add($log)
+$log = New-Object System.Windows.Forms.RichTextBox; $log.Size=New-Object System.Drawing.Size(588,156); $log.Location=New-Object System.Drawing.Point(26,574); $log.BackColor=[System.Drawing.Color]::FromArgb(8,8,13); $log.ForeColor=$DIM; $log.Font=$FMono; $log.ReadOnly=$true; $log.BorderStyle="None"; $log.ScrollBars="Vertical"; $form.Controls.Add($log)
 
 # Buttons
-$btn = New-Object System.Windows.Forms.Button; $btn.Text="Run - Remove OneDrive"; $btn.Font=$FBtn; $btn.Size=New-Object System.Drawing.Size(360,52); $btn.Location=New-Object System.Drawing.Point(26,676); $btn.BackColor=$ACCENT; $btn.ForeColor=$TEXT; $btn.FlatStyle="Flat"; $btn.FlatAppearance.BorderSize=0; $btn.Cursor=[System.Windows.Forms.Cursors]::Hand; $form.Controls.Add($btn)
-$btnSave = New-Object System.Windows.Forms.Button; $btnSave.Text="Save Log"; $btnSave.Font=$FBtn; $btnSave.Size=New-Object System.Drawing.Size(156,52); $btnSave.Location=New-Object System.Drawing.Point(398,676); $btnSave.BackColor=[System.Drawing.Color]::FromArgb(32,32,44); $btnSave.ForeColor=$TEXT; $btnSave.FlatStyle="Flat"; $btnSave.FlatAppearance.BorderSize=0; $btnSave.Cursor=[System.Windows.Forms.Cursors]::Hand; $btnSave.Enabled=$false; $form.Controls.Add($btnSave)
+$btn = New-Object System.Windows.Forms.Button; $btn.Text="Run - Remove OneDrive"; $btn.Font=$FBtn; $btn.Size=New-Object System.Drawing.Size(408,52); $btn.Location=New-Object System.Drawing.Point(26,744); $btn.BackColor=$ACCENT; $btn.ForeColor=$TEXT; $btn.FlatStyle="Flat"; $btn.FlatAppearance.BorderSize=0; $btn.Cursor=[System.Windows.Forms.Cursors]::Hand; $form.Controls.Add($btn)
+$btnSave = New-Object System.Windows.Forms.Button; $btnSave.Text="Save Log"; $btnSave.Font=$FBtn; $btnSave.Size=New-Object System.Drawing.Size(168,52); $btnSave.Location=New-Object System.Drawing.Point(446,744); $btnSave.BackColor=[System.Drawing.Color]::FromArgb(32,32,44); $btnSave.ForeColor=$TEXT; $btnSave.FlatStyle="Flat"; $btnSave.FlatAppearance.BorderSize=0; $btnSave.Cursor=[System.Windows.Forms.Cursors]::Hand; $btnSave.Enabled=$false; $form.Controls.Add($btnSave)
 
 # Helpers
 function L($m,$c){ $log.SelectionStart=$log.TextLength; $log.SelectionLength=0; if($c){$log.SelectionColor=$c}; $log.AppendText("$m`n"); $log.SelectionColor=$DIM; $log.ScrollToCaret(); [System.Windows.Forms.Application]::DoEvents() }
@@ -552,10 +552,13 @@ $btn.Add_Click({
 
         # STEP 4 - AppX
         Mark 4 "run"; $lblSt.Text="Removing AppX / Store version..."
+        $appxFound = $false
         Get-AppxPackage -AllUsers -EA SilentlyContinue | Where-Object {$_.Name -match "OneDrive"} | ForEach-Object {
+            $appxFound = $true
             Remove-AppxPackage -Package $_.PackageFullName -AllUsers -EA SilentlyContinue
             L "  Removed AppX: $($_.Name)" $SUCCESS
-        } else {
+        }
+        if(-not $appxFound){
             L "  No AppX OneDrive package found." $DIM
         }
         Get-AppxProvisionedPackage -Online -EA SilentlyContinue | Where-Object {$_.PackageName -match "OneDrive"} | ForEach-Object {
