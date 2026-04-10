@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.3 - 2026-04-09
+
+- Extended final verification to flag leftover OneDrive AppX and provisioned packages
+- Fixed permission-repair fallback to use the Administrators SID for non-English Windows installs
+- Improved delete fallback logging when permission repair still cannot remove a path
+
 ## 1.1.2 - 2026-04-09
 
 - Fixed known-folder detection so OneDrive for Business paths are treated as OneDrive-managed

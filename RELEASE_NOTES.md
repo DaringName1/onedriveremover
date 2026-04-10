@@ -1,4 +1,4 @@
-# OneDrive Remover v1.1.2
+# OneDrive Remover v1.1.3
 
 Safe OneDrive removal for Windows 10 and Windows 11.
 
@@ -16,7 +16,9 @@ Safe OneDrive removal for Windows 10 and Windows 11.
 - Fixes OneDrive for Business known-folder detection
 - Fixes `-VerifyOnly` to use real verification results
 - Fixes `-SaveLogPath` for non-GUI report modes
+- Extends final verification to catch leftover AppX/provisioned packages
+- Fixes permission repair on non-English Windows installs
 
 ## Recommended Release Text
 
-OneDrive Remover v1.1.2 is a safety-focused Windows 10/11 tool for people who want OneDrive gone without wrecking their folder setup. It removes the app, cleans leftovers, checks for cloud-only files, can move Desktop/Documents/Pictures out of OneDrive first, keeps a log of what happened, includes advanced PowerShell switches for technical users, and fixes OneDrive for Business detection plus report-mode logging and verification issues.
+OneDrive Remover v1.1.3 is a safety-focused Windows 10/11 tool for people who want OneDrive gone without wrecking their folder setup. It removes the app, cleans leftovers, checks for cloud-only files, can move Desktop/Documents/Pictures out of OneDrive first, keeps a log of what happened, includes advanced PowerShell switches for technical users, and now improves final verification plus non-English Windows compatibility.

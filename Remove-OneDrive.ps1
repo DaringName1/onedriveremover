@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 # ============================================================
-#  OneDrive Remover v1.1.2 - Handles clean, partial & broken installs
+#  OneDrive Remover v1.1.3 - Handles clean, partial & broken installs
 #  Launched automatically as Admin via the desktop shortcut
 # ============================================================
 
@@ -15,7 +15,7 @@ param(
 
 try {
 
-$AppVersion = "1.1.2"
+$AppVersion = "1.1.3"
 $selfPath = if ($PSCommandPath) { $PSCommandPath } elseif ($MyInvocation.MyCommand.Path) { $MyInvocation.MyCommand.Path } else { $null }
 $isCompiledExe = $selfPath -and ([System.IO.Path]::GetExtension($selfPath) -ieq ".exe")
 $scriptDir = if ($selfPath) { Split-Path -Parent $selfPath } else { (Get-Location).Path }
@@ -441,6 +441,12 @@ function Verify-RemovalState(){
     $gpValue = (Get-ItemProperty -Path $gp -Name "DisableFileSyncNGSC" -EA SilentlyContinue).DisableFileSyncNGSC
     if($gpValue -ne 1){ [void]$issues.Add("Reinstall block policy is missing.") }
 
+    $appxPackages = @(Get-AppxPackage -AllUsers -EA SilentlyContinue | Where-Object { $_.Name -match "OneDrive" })
+    if($appxPackages.Count -gt 0){ [void]$issues.Add("OneDrive AppX package still exists.") }
+
+    $provisionedPackages = @(Get-AppxProvisionedPackage -Online -EA SilentlyContinue | Where-Object { $_.PackageName -match "OneDrive" })
+    if($provisionedPackages.Count -gt 0){ [void]$issues.Add("OneDrive provisioned package still exists.") }
+
     return $issues
 }
 function Test-OneDriveRemovalTarget($p){
@@ -487,9 +493,13 @@ function FDel($p){
     }catch{
         try{
             & takeown /f "$p" /r /d y 2>$null|Out-Null
-            & icacls "$p" /grant administrators:F /t 2>$null|Out-Null
+            & icacls "$p" /grant "*S-1-5-32-544:(F)" /t /c 2>$null|Out-Null
             Remove-Item -LiteralPath $p -Recurse -Force -EA SilentlyContinue
-            L "    Force-removed: $p" $WARN
+            if(-not (Test-Path -LiteralPath $p)){
+                L "    Force-removed: $p" $WARN
+            } else {
+                L "    Could not remove after permission repair: $p" $WARN
+            }
         }catch{
             L "    Locked (will clear on reboot): $p" $DIM
         }
