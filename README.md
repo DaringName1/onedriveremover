@@ -23,7 +23,9 @@ Removes OneDrive from Windows 10 and Windows 11 while preserving user files.
 
 ## Download
 
-Download the latest `OneDrive-Remover.exe` from the GitHub Releases page.
+Download the latest `OneDrive-Remover.exe` from the Releases page:
+
+[Latest Release](https://github.com/DaringName1/onedriveremover/releases/latest)
 
 ## In The App
 
@@ -137,13 +139,11 @@ These switches are mainly useful when running the `PS1` directly.
 - `OneDrive-Remover.exe`
 - `Remove-OneDrive.ps1`
 
-## GitHub Release Setup
+## Release
 
-1. Create a new public GitHub repository
-2. Upload the files in this folder
-3. Create a Release such as `v1.0.0`
-4. Attach `OneDrive-Remover.exe` to the release
-5. Tell users to download the `.exe` from the Releases page
+Current public release:
+
+[OneDrive Remover v1.1.3](https://github.com/DaringName1/onedriveremover/releases/tag/v1.1.3)
 
 ## Disclaimer
 
